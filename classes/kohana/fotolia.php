@@ -121,13 +121,13 @@ class Kohana_Fotolia {
 		return $result;
 	}
 	
-	public function getPhotosByCategory($type, $category_id, $page = NULL, $limit = NULL, $language_id = NULL)
+	public function getPhotosByCategory($type, $category_id, $page = NULL, $limit = NULL, $language_id = NULL, $search = NULL)
 	{	
 		if ($language_id === NULL) $language_id = Kohana::$config->load('fotolia.language_id');
 		if ($page === NULL) $page = 1;
 		if ($limit === NULL) $limit = $this->config['per_page'];
 		
-		$cache_key = __CLASS__ . __METHOD__ . print_r(array($type, $category_id, $page, $limit, $language_id), TRUE);
+		$cache_key = __CLASS__ . __METHOD__ . print_r(array($type, $category_id, $page, $limit, $language_id, $search), TRUE);
 		
 		if ($this->config['cache'] === FALSE || ($result = Kohana::cache($cache_key)) === NULL) {
 			$param = array();
@@ -136,6 +136,8 @@ class Kohana_Fotolia {
 			$param['search_parameters']['language_id'] = $language_id;
 			$param['search_parameters']['offset'] = ($page - 1) * $limit;
 			$param['search_parameters']['limit'] = $limit;
+			if ($search !== NULL)
+				$param['search_parameters']['words'] = $search;
 			
 			if (($result = $this->make_call('search/getSearchResults', $param)) !== FALSE)
 				$result = Fotolia_Photo::factory($result, $language_id);
