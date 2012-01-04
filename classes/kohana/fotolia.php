@@ -16,7 +16,14 @@ class Kohana_Fotolia {
 	const TYPE_REPRESENTATIVE = 1;
 	const TYPE_CONCEPTUAL = 2;
 	
+	const THUMBNAIL_30 = 30;
+	const THUMBNAIL_110 = 110;
+	const THUMBNAIL_400 = 400;
+	
 	public static $instance = NULL;
+	
+	public static $method_no_cache = array();
+	public static $cache_lifetime = 86400;
 	
 	/**
 	 * @return Fotolia
@@ -52,34 +59,44 @@ class Kohana_Fotolia {
 	}
 	
 	protected function make_call($method, array $params = NULL, array $post = NULL)
-	{		
-		$url = __(
-			$this->base,
-			array(
-				':key' => $this->config['key'],
-				':method' => $method,
-				':query' => URL::query($params)
-			)
-		);
+	{
+		$cache_active = !in_array($method, Fotolia::$method_no_cache);
+		$cache_id = print_r(func_get_args(), TRUE);
 		
-		if ($post !== NULL)
+		if ($this->config['cache'] === FALSE || ($result = Cache::instance()->get($cache_id, NULL)) === NULL)
 		{
-			$rq = Request::factory($url)->method(Request::POST)->post($post);
+			$url = __(
+				$this->base,
+				array(
+					':key' => $this->config['key'],
+					':method' => $method,
+					':query' => URL::query($params)
+				)
+			);
+			
+			if ($post !== NULL)
+			{
+				$rq = Request::factory($url)->method(Request::POST)->post($post);
+			}
+			else
+			{
+				$rq = Request::factory($url)->method(Request::GET);
+			}
+			$response = $rq->execute();
+			
+			if ($response->status() == 200)
+			{
+				$result = $response->body();
+			}
+			else
+			{
+				return FALSE;
+			}
+			
+			if ($this->config['cache'])
+				Cache::instance()->set($cache_id, $result, Fotolia::$cache_lifetime);
 		}
-		else
-		{
-			$rq = Request::factory($url)->method(Request::GET);
-		}
-		$response = $rq->execute();
-		
-		if ($response->status() == 200)
-		{
-			return json_decode($response->body());
-		}
-		else
-		{
-			return FALSE;
-		}
+		return json_decode($result);
 	}
 	
 	public function loginUser()
@@ -89,22 +106,29 @@ class Kohana_Fotolia {
 	
 	public function getMediaComp($id)
 	{
-		$cache_key = __CLASS__ . __METHOD__ . $id;
-		if ($this->config['cache'] === FALSE || ($result = Kohana::cache($cache_key)) === NULL) {
-			$response = $this->make_call('media/getMediaComp', array('id' => $id));
-			if ($response !== FALSE)
+		$response = $this->make_call('media/getMediaComp', array('id' => $id));
+		if ($response !== FALSE)
+		{
+			$response = Request::factory(http_build_url($response->url, array('user' => $this->config['key'])))->execute();
+			if ($response->status() == 200)
 			{
-				$response = Request::factory(http_build_url($response->url, array('user' => $this->config['key'])))->execute();
-				if ($response->status() == 200)
-				{
-					if ($this->config['cache'] === TRUE)
-						Kohana::cache($cache_key, $response->body());
-					return $response->body();
-				}
+				return $response->body();
 			}
-			return FALSE;
 		}
-		return $result;
+		return FALSE;
+	}
+	
+	public function getMediaData($id, $thumbnail_size, $language_id = NULL)
+	{
+		if ($language_id === NULL) $language_id = Kohana::$config->load('fotolia.language_id');
+		
+		$param = array(
+			'id'             => $id,
+			'thumbnail_size' => $thumbnail_size,
+			'language_id'    => $language_id,
+		);
+		
+		return $this->make_call('media/getMediaData', $param);
 	}
 	
 	public function getCategories($type, $language_id = NULL, $parent_id = NULL)
@@ -126,25 +150,18 @@ class Kohana_Fotolia {
 		if ($language_id === NULL) $language_id = Kohana::$config->load('fotolia.language_id');
 		if ($page === NULL) $page = 1;
 		if ($limit === NULL) $limit = $this->config['per_page'];
+
+		$param = array();
+		$param['search_parameters'] = array();
+		$param['search_parameters']['cat' . $type . '_id'] = $category_id;
+		$param['search_parameters']['language_id'] = $language_id;
+		$param['search_parameters']['offset'] = ($page - 1) * $limit;
+		$param['search_parameters']['limit'] = $limit;
+		if ($search !== NULL)
+			$param['search_parameters']['words'] = $search;
 		
-		$cache_key = __CLASS__ . __METHOD__ . print_r(array($type, $category_id, $page, $limit, $language_id, $search), TRUE);
-		
-		if ($this->config['cache'] === FALSE || ($result = Kohana::cache($cache_key)) === NULL) {
-			$param = array();
-			$param['search_parameters'] = array();
-			$param['search_parameters']['cat' . $type . '_id'] = $category_id;
-			$param['search_parameters']['language_id'] = $language_id;
-			$param['search_parameters']['offset'] = ($page - 1) * $limit;
-			$param['search_parameters']['limit'] = $limit;
-			if ($search !== NULL)
-				$param['search_parameters']['words'] = $search;
-			
-			if (($result = $this->make_call('search/getSearchResults', $param)) !== FALSE)
-				$result = Fotolia_Photo::factory($result, $language_id);
-			
-			if ($this->config['cache'] === TRUE)
-				Kohana::cache($cache_key, $result);
-		}
+		if (($result = $this->make_call('search/getSearchResults', $param)) !== FALSE)
+			$result = Fotolia_Photo::factory($result, $language_id);
 		
 		return $result;
 	}
