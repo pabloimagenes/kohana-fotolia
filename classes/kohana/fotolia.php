@@ -157,6 +157,12 @@ class Kohana_Fotolia {
 		$param['search_parameters']['language_id'] = $language_id;
 		$param['search_parameters']['offset'] = ($page - 1) * $limit;
 		$param['search_parameters']['limit'] = $limit;
+		$param['search_parameters']['filters'] = array();
+		$param['search_parameters']['filters']['content_type:photo'] = 1;
+		$param['search_parameters']['filters']['content_type:illustration'] = 1;
+		$param['search_parameters']['filters']['content_type:vector'] = 1;
+		$param['search_parameters']['filters']['content_type:all'] = 0;
+		
 		if ($search !== NULL)
 			$param['search_parameters']['words'] = $search;
 		
