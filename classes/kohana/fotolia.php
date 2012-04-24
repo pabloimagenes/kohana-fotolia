@@ -22,7 +22,7 @@ class Kohana_Fotolia {
 	
 	public static $instance = NULL;
 	
-	public static $method_no_cache = array();
+	public static $method_no_cache = array('media/getMedia');
 	public static $cache_lifetime = 86400;
 	
 	/**
@@ -47,7 +47,7 @@ class Kohana_Fotolia {
 		{
 			if (($token = $this->loginUser()) !== FALSE)
 			{
-				$this->session_token = $token->session_token;
+				$this->session_token = $token->session_id;
 			}
 		}
 		return $this->session_token;
@@ -170,6 +170,21 @@ class Kohana_Fotolia {
 			$result = Fotolia_Photo::factory($result, $language_id);
 		
 		return $result;
+	}
+	
+	public function getMedia($media_id, $media_license, $save_file)
+	{
+		$param = array(
+			'id' => $media_id,
+			'license_name' => $media_license,
+			'session_id' => $this->session_token(),
+		);
+		
+		if (($result = $this->make_call('media/getMedia', $param)) !== FALSE)
+		{
+			$file = Request::factory($result->url)->execute();
+			file_put_contents($save_file . '.' . $result->extension, $file->body());
+		}
 	}
 	
 }
