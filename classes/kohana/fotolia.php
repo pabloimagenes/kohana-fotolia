@@ -37,7 +37,7 @@ class Kohana_Fotolia {
 		return Fotolia::$instance;
 	}
 	
-	protected $base = 'http://:key@api.fotolia.com/Rest/1/:method:query';
+	protected $base = 'http://:key:token@api.fotolia.com/Rest/1/:method:query';
 	protected $config;
 	protected $session_token = NULL;
 	
@@ -47,7 +47,7 @@ class Kohana_Fotolia {
 		{
 			if (($token = $this->loginUser()) !== FALSE)
 			{
-				$this->session_token = $token->session_id;
+				$this->session_token = $token->session_token;
 			}
 		}
 		return $this->session_token;
@@ -58,7 +58,7 @@ class Kohana_Fotolia {
 		$this->config = Kohana::$config->load('fotolia');
 	}
 	
-	protected function make_call($method, array $params = NULL, array $post = NULL)
+	protected function make_call($method, array $params = NULL, array $post = NULL, $with_token = FALSE)
 	{
 		$cache_active = !in_array($method, Fotolia::$method_no_cache);
 		$cache_id = print_r(func_get_args(), TRUE);
@@ -70,7 +70,8 @@ class Kohana_Fotolia {
 				array(
 					':key' => $this->config['key'],
 					':method' => $method,
-					':query' => URL::query($params)
+					':query' => URL::query($params),
+					':token' => $with_token?(':'.$this->session_token()):NULL
 				)
 			);
 			
@@ -177,12 +178,12 @@ class Kohana_Fotolia {
 		$param = array(
 			'id' => $media_id,
 			'license_name' => $media_license,
-			'session_id' => $this->session_token(),
 		);
 		
-		if (($result = $this->make_call('media/getMedia', $param)) !== FALSE)
+		if (($result = $this->make_call('media/getMedia', $param, NULL, TRUE)) !== FALSE)
 		{
-			$file = Request::factory($result->url)->execute();
+			$url = str_replace('http://', 'http://' . $this->config['key'] . ':' . $this->session_token() . '@', $result->url);
+			$file = Request::factory($url)->execute();
 			file_put_contents($save_file . '.' . $result->extension, $file->body());
 		}
 	}
