@@ -91,7 +91,7 @@ class Kohana_Fotolia {
 			}
 			else
 			{
-				Log::instance()->add(Log::ERROR, __("FOTOLIA: URL: :url, POST: :post", array(":url" => $url, ":post" => print_r($post, TRUE))));
+				Log::instance()->add(Log::ERROR, __("FOTOLIA: URL: :url, POST: :post, ODPOWIEDŹ: :response", array(":response" => $response->body(), ":url" => $url, ":post" => print_r($post, TRUE))));
 				return FALSE;
 			}
 			
