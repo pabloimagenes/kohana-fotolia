@@ -22,7 +22,7 @@ class Kohana_Fotolia {
 	
 	public static $instance = NULL;
 	
-	public static $method_no_cache = array('media/getMedia');
+	public static $method_no_cache = array('media/getMedia', 'user/loginUser');
 	public static $cache_lifetime = 86400;
 	
 	/**
@@ -63,7 +63,7 @@ class Kohana_Fotolia {
 		$cache_active = !in_array($method, Fotolia::$method_no_cache);
 		$cache_id = print_r(func_get_args(), TRUE);
 		
-		if ($this->config['cache'] === FALSE || ($result = Cache::instance()->get($cache_id, NULL)) === NULL)
+		if ($this->config['cache'] === FALSE || ($result = Cache::instance()->get($cache_id, NULL)) === NULL || !$cache_active)
 		{
 			$url = __(
 				$this->base,
@@ -91,6 +91,7 @@ class Kohana_Fotolia {
 			}
 			else
 			{
+				Log::instance()->add(Log::ERROR, __("FOTOLIA: URL: :url, POST: :post", array(":url" => $url, ":post" => print_r($post, TRUE))));
 				return FALSE;
 			}
 			
