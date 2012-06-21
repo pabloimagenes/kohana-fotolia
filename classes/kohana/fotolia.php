@@ -147,7 +147,7 @@ class Kohana_Fotolia {
 		return $result;
 	}
 	
-	public function getPhotosByCategory($type, $category_id, $page = NULL, $limit = NULL, $language_id = NULL, $search = NULL)
+	public function getPhotosByCategory($type, $category_id, $page = NULL, $limit = NULL, $language_id = NULL, $search = NULL, $max_price_x = NULL)
 	{	
 		if ($language_id === NULL) $language_id = Kohana::$config->load('fotolia.language_id');
 		if ($page === NULL) $page = 1;
@@ -164,6 +164,9 @@ class Kohana_Fotolia {
 		$param['search_parameters']['filters']['content_type:illustration'] = 1;
 		$param['search_parameters']['filters']['content_type:vector'] = 1;
 		$param['search_parameters']['filters']['content_type:all'] = 0;
+		
+		if ($max_price_x !== NULL)
+			$param['search_parameters']['filters']['max_price_x'] = $max_price_x;
 		
 		if ($search !== NULL)
 			$param['search_parameters']['words'] = $search;
